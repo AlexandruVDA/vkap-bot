@@ -1,7 +1,6 @@
 {
   "name": "vkap-bot",
   "version": "1.0.0",
-  "description": "VKAP Alpha AI Telegram Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
