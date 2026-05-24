@@ -1,13 +1,23 @@
 require('dotenv').config();
-const express = require('express');
+const TelegramBot = require('node-telegram-bot-api');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const token = process.env.TELEGRAM_BOT_TOKEN;
 
-app.get('/', (req, res) => {
-  res.send('VKap bot alive');
+if (!token) {
+  console.error('TELEGRAM_BOT_TOKEN missing');
+  process.exit(1);
+}
+
+const bot = new TelegramBot(token, { polling: true });
+
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, 'VKap bot online 🚀');
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+bot.on('message', (msg) => {
+  if (msg.text && msg.text !== '/start') {
+    bot.sendMessage(msg.chat.id, `Ai scris: ${msg.text}`);
+  }
 });
+
+console.log('Telegram bot started');
