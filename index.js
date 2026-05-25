@@ -1,13 +1,13 @@
-require("dotenv").config();
-const TelegramBot = require("node-telegram-bot-api");
+require('dotenv').config();
+const TelegramBot = require('node-telegram-bot-api');
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
 const VKAP_MINT = process.env.VKAP_MINT;
-
-const PUMPPORTAL_API_KEY = process.env.PUMPPORTAL_API_KEY;
+const MAIN_KEY = process.env.PUMPPORTAL_API_KEY;
 
 const WALLETS = {
+  main: MAIN_KEY,
   1: process.env.PUMP_KEY_1,
   2: process.env.PUMP_KEY_2,
   3: process.env.PUMP_KEY_3
@@ -19,34 +19,24 @@ let autoBuyEnabled = true;
 const AUTO_BUY_AMOUNT = 0.006;
 const AUTO_BUY_INTERVAL = 10 * 60 * 1000;
 
-async function trade(privateKey, action, amount) {
-  if (!privateKey) {
-    throw new Error("Wallet private key missing");
-  }
+async function trade(apiKey, action, amount) {
+  if (!apiKey) throw new Error('API key missing');
 
-  if (!PUMPPORTAL_API_KEY) {
-    throw new Error("PumpPortal API key missing");
-  }
-
-  const res = await fetch(
-    https://pumpportal.fun/api/trade?api-key=${PUMPPORTAL_API_KEY},
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        action,
-        mint: VKAP_MINT,
-        amount,
-        denominatedInSol: "true",
-        slippage: 10,
-        priorityFee: 0.00005,
-        pool: "pump",
-        privateKey
-      })
-    }
-  );
+  const res = await fetch(`https://pumpportal.fun/api/trade?api-key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      action,
+      mint: VKAP_MINT,
+      amount,
+      denominatedInSol: 'true',
+      slippage: 10,
+      priorityFee: 0.00005,
+      pool: 'pump'
+    })
+  });
 
   const data = await res.json();
 
@@ -57,75 +47,157 @@ async function trade(privateKey, action, amount) {
   return data;
 }
 
-bot.onText(/\/buy_wallet (\d+) ([\d.]+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const walletId = match[1];
-  const amount = parseFloat(match[2]);
-
-  if (amount > MAX_TRADE_SOL) {
-    return bot.sendMessage(chatId, Max trade is ${MAX_TRADE_SOL} SOL);
-  }
-
-  const walletKey = WALLETS[walletId];
-
-  if (!walletKey) {
-    return bot.sendMessage(chatId, "Wallet not found");
-  }
-
-  try {
-    await trade(walletKey, "buy", amount);
-    bot.sendMessage(chatId, Buy successful ✅\nWallet: ${walletId});
-  } catch (err) {
-    bot.sendMessage(chatId, Buy failed ❌\nWallet: ${walletId}\n${err.message});
-  }
-});
-
-bot.onText(/\/sell_wallet (\d+) ([\d.]+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const walletId = match[1];
-  const amount = parseFloat(match[2]);
-
-  const walletKey = WALLETS[walletId];
-
-  if (!walletKey) {
-    return bot.sendMessage(chatId, "Wallet not found");
-  }
-
-  try {
-    await trade(walletKey, "sell", amount);
-    bot.sendMessage(chatId, Sell successful ✅\nWallet: ${walletId});
-  } catch (err) {
-    bot.sendMessage(chatId, Sell failed ❌\nWallet: ${walletId}\n${err.message});
-  }
-});
-
-async function autoBuyAll() {
+setInterval(async () => {
   if (!autoBuyEnabled) return;
 
-  for (const walletId of Object.keys(WALLETS)) {
-    try {
-      await trade(WALLETS[walletId], "buy", AUTO_BUY_AMOUNT);
-    } catch (err) {
-      console.log(Auto buy failed wallet ${walletId}:, err.message);
-    }
+  try {
+    const result = await trade(MAIN_KEY, 'buy', AUTO_BUY_AMOUNT);
+    console.log('MAIN AUTO BUY:', result);
+  } catch (err) {
+    console.log('MAIN AUTO BUY ERROR:', err.message);
   }
-}
+}, AUTO_BUY_INTERVAL);
 
-setInterval(autoBuyAll, AUTO_BUY_INTERVAL);
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(
+    msg.chat.id,
+    `VKAP Mix Bot online ✅
 
-bot.onText(/\/autobuy_on/, (msg) => {
-  autoBuyEnabled = true;
-  bot.sendMessage(msg.chat.id, "Auto buy enabled ✅");
-});
+Commands:
+/status
+/wallets
+/start_auto
+/stop_auto
 
-bot.onText(/\/autobuy_off/, (msg) => {
-  autoBuyEnabled = false;
-  bot.sendMessage(msg.chat.id, "Auto buy disabled ❌");
+BUY:
+/buy_main 0.01
+/buy_wallet 1 0.01
+/buy_wallet 2 0.01
+/buy_wallet 3 0.01
+
+SELL:
+/sell_main 0.01
+/sell_wallet 1 0.01
+/sell_wallet 2 0.01
+/sell_wallet 3 0.01`
+  );
 });
 
 bot.onText(/\/status/, (msg) => {
   bot.sendMessage(
     msg.chat.id,
-    Bot status:\nAuto buy: ${autoBuyEnabled ? "ON" : "OFF"}
+    `Status ✅
+Auto-buy main: ${autoBuyEnabled ? 'ON' : 'OFF'}
+Auto amount: ${AUTO_BUY_AMOUNT} SOL / 10 min
+Max trade: ${MAX_TRADE_SOL} SOL`
   );
 });
+
+bot.onText(/\/wallets/, (msg) => {
+  bot.sendMessage(
+    msg.chat.id,
+    `Wallets:
+Main: ${WALLETS.main ? '✅' : '❌'}
+1: ${WALLETS[1] ? '✅' : '❌'}
+2: ${WALLETS[2] ? '✅' : '❌'}
+3: ${WALLETS[3] ? '✅' : '❌'}`
+  );
+});
+
+bot.onText(/\/start_auto/, (msg) => {
+  autoBuyEnabled = true;
+  bot.sendMessage(msg.chat.id, 'Auto buy ON ✅');
+});
+
+bot.onText(/\/stop_auto/, (msg) => {
+  autoBuyEnabled = false;
+  bot.sendMessage(msg.chat.id, 'Auto buy OFF 🛑');
+});
+
+bot.onText(/\/buy_main (.+)/, async (msg, match) => {
+  const amount = Number(match[1]);
+
+  if (!amount || amount <= 0) {
+    return bot.sendMessage(msg.chat.id, 'Use: /buy_main 0.01');
+  }
+
+  if (amount > MAX_TRADE_SOL) {
+    return bot.sendMessage(msg.chat.id, `Max ${MAX_TRADE_SOL} SOL`);
+  }
+
+  try {
+    const result = await trade(WALLETS.main, 'buy', amount);
+    bot.sendMessage(msg.chat.id, `Main buy ✅`);
+  } catch (err) {
+    bot.sendMessage(msg.chat.id, `Main buy failed ❌\n${err.message}`);
+  }
+});
+
+bot.onText(/\/sell_main (.+)/, async (msg, match) => {
+  const amount = Number(match[1]);
+
+  if (!amount || amount <= 0) {
+    return bot.sendMessage(msg.chat.id, 'Use: /sell_main 0.01');
+  }
+
+  if (amount > MAX_TRADE_SOL) {
+    return bot.sendMessage(msg.chat.id, `Max ${MAX_TRADE_SOL} SOL`);
+  }
+
+  try {
+    await trade(WALLETS.main, 'sell', amount);
+    bot.sendMessage(msg.chat.id, `Main sell ✅`);
+  } catch (err) {
+    bot.sendMessage(msg.chat.id, `Main sell failed ❌\n${err.message}`);
+  }
+});
+
+bot.onText(/\/buy_wallet (\d+) (.+)/, async (msg, match) => {
+  const walletNumber = Number(match[1]);
+  const amount = Number(match[2]);
+
+  if (![1, 2, 3].includes(walletNumber)) {
+    return bot.sendMessage(msg.chat.id, 'Use wallet 1/2/3');
+  }
+
+  if (!amount || amount <= 0) {
+    return bot.sendMessage(msg.chat.id, 'Use: /buy_wallet 2 0.01');
+  }
+
+  if (amount > MAX_TRADE_SOL) {
+    return bot.sendMessage(msg.chat.id, `Max ${MAX_TRADE_SOL} SOL`);
+  }
+
+  try {
+    await trade(WALLETS[walletNumber], 'buy', amount);
+    bot.sendMessage(msg.chat.id, `Wallet ${walletNumber} buy ✅`);
+  } catch (err) {
+    bot.sendMessage(msg.chat.id, `Buy failed ❌\n${err.message}`);
+  }
+});
+
+bot.onText(/\/sell_wallet (\d+) (.+)/, async (msg, match) => {
+  const walletNumber = Number(match[1]);
+  const amount = Number(match[2]);
+
+  if (![1, 2, 3].includes(walletNumber)) {
+    return bot.sendMessage(msg.chat.id, 'Use wallet 1/2/3');
+  }
+
+  if (!amount || amount <= 0) {
+    return bot.sendMessage(msg.chat.id, 'Use: /sell_wallet 2 0.01');
+  }
+
+  if (amount > MAX_TRADE_SOL) {
+    return bot.sendMessage(msg.chat.id, `Max ${MAX_TRADE_SOL} SOL`);
+  }
+
+  try {
+    await trade(WALLETS[walletNumber], 'sell', amount);
+    bot.sendMessage(msg.chat.id, `Wallet ${walletNumber} sell ✅`);
+  } catch (err) {
+    bot.sendMessage(msg.chat.id, `Sell failed ❌\n${err.message}`);
+  }
+});
+
+console.log('VKAP Mix Bot started');
