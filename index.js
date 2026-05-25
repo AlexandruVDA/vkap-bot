@@ -1,6 +1,6 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const bs58 = require('bs58');
+ const bs58 = require('bs58').default;
 const {
   Connection,
   Keypair,
