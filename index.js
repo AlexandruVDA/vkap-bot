@@ -22,26 +22,33 @@ const AUTO_BUY_INTERVAL = 10 * 60 * 1000;
 
 async function trade(privateKey, action, amount) {
   if (!PUMPPORTAL_API_KEY) throw new Error('PUMPPORTAL_API_KEY missing');
+  if (!VKAP_MINT) throw new Error('VKAP_MINT missing');
   if (!privateKey) throw new Error('Private key missing');
 
   const res = await fetch(`https://pumpportal.fun/api/trade?api-key=${PUMPPORTAL_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      action,
+      action: action,
       mint: VKAP_MINT,
-      amount,
-      denominatedInSol: 'true',
-      slippage: 10,
-      priorityFee: 0.00005,
+      amount: amount,
+      denominatedInSol: true,
+      slippage: 15,
+      priorityFee: 0.001,
       pool: 'pump',
-      privateKey
+      privateKey: privateKey
     })
   });
 
   const data = await res.json();
 
-  if (!res.ok) throw new Error(JSON.stringify(data));
+  if (!res.ok) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  if (data.errors && data.errors.length > 0) {
+    throw new Error(JSON.stringify(data.errors));
+  }
 
   return data;
 }
@@ -60,20 +67,18 @@ setInterval(async () => {
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, `VKAP Bot online ✅
 
-Commands:
 /status
 /wallets
 /start_auto
 /stop_auto
 
-BUY:
 /buy_main 0.01
+/sell_main 0.01
+
 /buy_wallet 1 0.01
 /buy_wallet 2 0.01
 /buy_wallet 3 0.01
 
-SELL:
-/sell_main 0.01
 /sell_wallet 1 0.01
 /sell_wallet 2 0.01
 /sell_wallet 3 0.01`);
@@ -163,4 +168,4 @@ bot.onText(/\/sell_wallet (\d+) (.+)/, async (msg, match) => {
   }
 });
 
-console.log('VKAP Private-Key Bot started');
+console.log('VKAP Bot started');
