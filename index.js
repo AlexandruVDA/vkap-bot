@@ -25,7 +25,7 @@ async function trade(privateKey, action, amount) {
   if (!VKAP_MINT) throw new Error('VKAP_MINT missing');
   if (!privateKey) throw new Error('Private key missing');
 
-  const res = await fetch(`https://pumpportal.fun/api/trade?api-key=${PUMPPORTAL_API_KEY}`, {
+  const res = await fetch(`https://pumpportal.fun/api/trade-local?api-key=${PUMPPORTAL_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
