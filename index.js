@@ -16,7 +16,7 @@ const WALLETS = {
 const MAX_BUY_SOL = 0.02;
 
 let autoBuyEnabled = true;
-const AUTO_BUY_AMOUNT = 0.003;
+const AUTO_BUY_AMOUNT = 0.006;
 const AUTO_BUY_INTERVAL = 10 * 60 * 1000;
 
 async function buyWithApiKey(apiKey, amount) {
