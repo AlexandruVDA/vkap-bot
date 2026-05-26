@@ -1,231 +1,169 @@
-require('dotenv').config();
+import TelegramBot from "node-telegram-bot-api";
+import OpenAI from "openai";
 
-const TelegramBot = require('node-telegram-bot-api');
-const bs58 = require('bs58').default;
+const VKAP_MINT = "8YPfddKpUzPhdyKw6UpdMFnD7yqqft2D8fEcFBeKpump";
+const VKAP_BUY_LINK = `https://pump.fun/coin/${VKAP_MINT}`;
+const SKILLS_LINK =
+  "https://raw.githubusercontent.com/pump-fun/pump-fun-skills/refs/heads/main/tokenized-agents/SKILL.md";
 
-const {
-  Connection,
-  Keypair,
-  VersionedTransaction
-} = require('@solana/web3.js');
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+  polling: true,
+});
 
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-const VKAP_MINT = process.env.VKAP_MINT;
-const RPC_URL = process.env.RPC_URL || 'https://api.mainnet-beta.solana.com';
+const SYSTEM_PROMPT = `
+You are VKAP AI, the official Telegram assistant for VILLACH KAPITAL / VKAP.
 
-const connection = new Connection(RPC_URL, 'confirmed');
+Token:
+Name: VILLACH KAPITAL
+Ticker: VKAP
+Network: Solana
+Mint address: ${VKAP_MINT}
+Buy link: ${VKAP_BUY_LINK}
 
-const WALLETS = {
-  1: process.env.PUMP_KEY_1,
-  2: process.env.PUMP_KEY_2,
-  3: process.env.PUMP_KEY_3
-};
+Rules:
+- Keep replies short, clear, and community-friendly.
+- Never promise profit, pumps, listings, or guaranteed returns.
+- Never give financial advice.
+- Always remind users to verify the official contract before buying.
+- If asked where to buy, give the official Pump.fun link.
+- If asked about ads, AMA, influencers, marketing, or partnerships, ask for media kit, pricing, engagement stats, audience geo, and previous campaign results.
+- If user writes Romanian, answer Romanian.
+- If user writes German, answer German.
+- Otherwise answer English.
+`;
 
-const MAX_TRADE_SOL = 0.5;
+function menu() {
+  return `🤖 VKAP AI Commands
 
-let autoBuyEnabled = true;
-
-const AUTO_BUY_AMOUNT = 0.0001;
-const AUTO_BUY_INTERVAL = 15 * 60 * 1000;
-const FEE_BUFFER_SOL = 0.01;
-
-function getKeypair(privateKey) {
-  if (!privateKey) throw new Error('Private key missing');
-  return Keypair.fromSecretKey(bs58.decode(privateKey));
+/start - Start bot
+/skills - Show agent skills
+/contract - Official contract
+/buy - Buy VKAP
+/community - Community info
+/partnership - Ads / AMA / promo requests`;
 }
 
-async function getWalletBalanceSol(walletId) {
-  const privateKey = WALLETS[walletId];
-  if (!privateKey) return 0;
-
-  const keypair = getKeypair(privateKey);
-  const balanceLamports = await connection.getBalance(keypair.publicKey);
-
-  return balanceLamports / 1e9;
-}
-
-async function findWalletWithBalance(amountSol) {
-  for (const walletId of [1, 2, 3]) {
-    const privateKey = WALLETS[walletId];
-    if (!privateKey) continue;
-
-    const balanceSol = await getWalletBalanceSol(walletId);
-
-    if (balanceSol >= amountSol + FEE_BUFFER_SOL) {
-      return walletId;
-    }
-  }
-
-  return null;
-}
-
-async function trade(walletId, action, amount) {
-  const privateKey = WALLETS[walletId];
-  const keypair = getKeypair(privateKey);
-
-  const response = await fetch('https://pumpportal.fun/api/trade-local', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      publicKey: keypair.publicKey.toBase58(),
-      action: action,
-      mint: VKAP_MINT,
-      amount: amount,
-      denominatedInSol: 'true',
-      slippage: 15,
-      priorityFee: 0.001,
-      pool: 'pump'
-    })
+async function send(chatId, text) {
+  await bot.sendMessage(chatId, text, {
+    disable_web_page_preview: true,
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText);
-  }
-
-  const txBuffer = await response.arrayBuffer();
-  const tx = VersionedTransaction.deserialize(new Uint8Array(txBuffer));
-
-  tx.sign([keypair]);
-
-  const signature = await connection.sendTransaction(tx, {
-    skipPreflight: false,
-    maxRetries: 5
-  });
-
-  await connection.confirmTransaction(signature, 'confirmed');
-
-  return signature;
 }
 
-setInterval(async () => {
-  if (!autoBuyEnabled) return;
+bot.onText(/^\/start$/, async (msg) => {
+  await send(
+    msg.chat.id,
+    `👋 Welcome to VKAP AI.
+
+VILLACH KAPITAL / VKAP
+Network: Solana
+Contract:
+${VKAP_MINT}
+
+${menu()}`
+  );
+});
+
+bot.onText(/^\/skills$/, async (msg) => {
+  await send(
+    msg.chat.id,
+    `VKAP AI Skills:
+
+• Token info
+• Community help
+• Crypto Q&A
+• Contract verification
+• Buy guidance
+• Partnership requests
+
+Tokenized Agent Skill:
+${SKILLS_LINK}`
+  );
+});
+
+bot.onText(/^\/contract$/, async (msg) => {
+  await send(
+    msg.chat.id,
+    `📄 Official VKAP Contract:
+
+${VKAP_MINT}
+
+Always verify the contract before buying.`
+  );
+});
+
+bot.onText(/^\/buy$/, async (msg) => {
+  await send(
+    msg.chat.id,
+    `🚀 Buy VKAP:
+
+${VKAP_BUY_LINK}
+
+Official contract:
+${VKAP_MINT}
+
+Always verify the contract before buying.`
+  );
+});
+
+bot.onText(/^\/community$/, async (msg) => {
+  await send(
+    msg.chat.id,
+    `🔥 Welcome to the VKAP community.
+
+VKAP is built around community, crypto culture, and the Villach Kapital brand.`
+  );
+});
+
+bot.onText(/^\/partnership$/, async (msg) => {
+  await send(
+    msg.chat.id,
+    `Thanks for reaching out.
+
+Please send:
+• Media kit
+• Pricing
+• Engagement stats
+• Audience geo
+• Previous campaign results
+
+Our team will review it.`
+  );
+});
+
+bot.on("message", async (msg) => {
+  if (!msg.text) return;
+
+  const text = msg.text.trim();
+
+  // Prevent commands from going to AI
+  if (text.startsWith("/")) return;
 
   try {
-    const walletId = await findWalletWithBalance(AUTO_BUY_AMOUNT);
+    const response = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: SYSTEM_PROMPT,
+        },
+        {
+          role: "user",
+          content: text,
+        },
+      ],
+      max_tokens: 220,
+    });
 
-    if (!walletId) {
-      console.log('AUTO BUY ERROR: No wallet has enough SOL');
-      return;
-    }
-
-    const sig = await trade(walletId, 'buy', AUTO_BUY_AMOUNT);
-
-    console.log(`AUTO BUY wallet ${walletId}:`, sig);
-  } catch (err) {
-    console.log('AUTO BUY ERROR:', err.message);
-  }
-}, AUTO_BUY_INTERVAL);
-
-bot.onText(/\/start/, (msg) => {
-  bot.sendMessage(msg.chat.id, `VKAP Bot online ✅
-
-/status
-/wallets
-/start_auto
-/stop_auto
-
-/buy_wallet 1 0.01
-/buy_wallet 2 0.01
-/buy_wallet 3 0.01
-
-/sell_wallet 1 0.01
-/sell_wallet 2 0.01
-/sell_wallet 3 0.01`);
-});
-
-bot.onText(/\/status/, async (msg) => {
-  bot.sendMessage(msg.chat.id, `Status ✅
-Auto-buy: ${autoBuyEnabled ? 'ON' : 'OFF'}
-Auto amount: ${AUTO_BUY_AMOUNT} SOL
-Auto interval: 30 min
-Wallet fallback: 1 → 2 → 3
-Max trade: ${MAX_TRADE_SOL} SOL`);
-});
-
-bot.onText(/\/wallets/, async (msg) => {
-  try {
-    const balance1 = await getWalletBalanceSol(1);
-    const balance2 = await getWalletBalanceSol(2);
-    const balance3 = await getWalletBalanceSol(3);
-
-    bot.sendMessage(msg.chat.id, `Wallets:
-1: ${WALLETS[1] ? '✅' : '❌'} | ${balance1.toFixed(6)} SOL
-2: ${WALLETS[2] ? '✅' : '❌'} | ${balance2.toFixed(6)} SOL
-3: ${WALLETS[3] ? '✅' : '❌'} | ${balance3.toFixed(6)} SOL`);
-  } catch (err) {
-    bot.sendMessage(msg.chat.id, `Wallet check failed ❌
-${err.message}`);
+    const reply = response.choices[0]?.message?.content || "VKAP AI is online.";
+    await send(msg.chat.id, reply);
+  } catch (error) {
+    console.error("OpenAI error:", error);
+    await send(msg.chat.id, "⚠️ Temporary error. Try again.");
   }
 });
 
-bot.onText(/\/start_auto/, (msg) => {
-  autoBuyEnabled = true;
-  bot.sendMessage(msg.chat.id, 'Auto-buy ON ✅');
-});
-
-bot.onText(/\/stop_auto/, (msg) => {
-  autoBuyEnabled = false;
-  bot.sendMessage(msg.chat.id, 'Auto-buy OFF 🛑');
-});
-
-bot.onText(/\/buy_wallet (\d+) (.+)/, async (msg, match) => {
-  const walletId = Number(match[1]);
-  const amount = Number(match[2]);
-
-  if (![1, 2, 3].includes(walletId)) {
-    return bot.sendMessage(msg.chat.id, 'Use wallet 1, 2, or 3.');
-  }
-
-  if (!amount || amount <= 0 || amount > MAX_TRADE_SOL) {
-    return bot.sendMessage(msg.chat.id, `Use: /buy_wallet ${walletId} 0.01
-Max: ${MAX_TRADE_SOL} SOL`);
-  }
-
-  try {
-    const balanceSol = await getWalletBalanceSol(walletId);
-
-    if (balanceSol < amount + FEE_BUFFER_SOL) {
-      return bot.sendMessage(msg.chat.id, `Wallet ${walletId} has not enough SOL ❌
-Balance: ${balanceSol.toFixed(6)} SOL
-Needed: ${(amount + FEE_BUFFER_SOL).toFixed(6)} SOL`);
-    }
-
-    const sig = await trade(walletId, 'buy', amount);
-
-    bot.sendMessage(msg.chat.id, `Wallet ${walletId} buy ✅
-https://solscan.io/tx/${sig}`);
-  } catch (err) {
-    bot.sendMessage(msg.chat.id, `Wallet ${walletId} buy failed ❌
-${err.message}`);
-  }
-});
-
-bot.onText(/\/sell_wallet (\d+) (.+)/, async (msg, match) => {
-  const walletId = Number(match[1]);
-  const amount = Number(match[2]);
-
-  if (![1, 2, 3].includes(walletId)) {
-    return bot.sendMessage(msg.chat.id, 'Use wallet 1, 2, or 3.');
-  }
-
-  if (!amount || amount <= 0 || amount > MAX_TRADE_SOL) {
-    return bot.sendMessage(msg.chat.id, `Use: /sell_wallet ${walletId} 0.01
-Max: ${MAX_TRADE_SOL} SOL`);
-  }
-
-  try {
-    const sig = await trade(walletId, 'sell', amount);
-
-    bot.sendMessage(msg.chat.id, `Wallet ${walletId} sell ✅
-https://solscan.io/tx/${sig}`);
-  } catch (err) {
-    bot.sendMessage(msg.chat.id, `Wallet ${walletId} sell failed ❌
-${err.message}`);
-  }
-});
-
-console.log('VKAP local signing bot started');
+console.log("VKAP AI Telegram bot is running.");
