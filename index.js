@@ -24,8 +24,8 @@ const MAIN_WALLET_ID = 1;
 const MAX_TRADE_SOL = 0.5;
 
 let autoBuyEnabled = true;
-const AUTO_BUY_AMOUNT = 0.006;
-const AUTO_BUY_INTERVAL = 10 * 60 * 1000;
+const AUTO_BUY_AMOUNT = 0.00006;
+const AUTO_BUY_INTERVAL = 15 * 60 * 1000;
 
 function getKeypair(privateKey) {
   if (!privateKey) throw new Error('Private key missing');
