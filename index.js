@@ -28,7 +28,7 @@ const MAX_TRADE_SOL = 0.5;
 
 let autoBuyEnabled = true;
 
-const AUTO_BUY_AMOUNT = 0.003;
+const AUTO_BUY_AMOUNT = 0.004;
 const AUTO_BUY_INTERVAL = 15 * 60 * 1000;
 const FEE_BUFFER_SOL = 0.01;
 
