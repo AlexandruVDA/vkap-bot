@@ -26,8 +26,8 @@ const MAX_TRADE_SOL = 0.5;
 
 let autoBuyEnabled = true;
 
-const AUTO_BUY_AMOUNT = 0.00006;
-const AUTO_BUY_INTERVAL = 30 * 60 * 1000;
+const AUTO_BUY_AMOUNT = 0.0002;
+const AUTO_BUY_INTERVAL = 15 * 30 * 1000;
 const FEE_BUFFER_SOL = 0.01;
 
 function getKeypair(privateKey) {
