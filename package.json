@@ -1,15 +1,13 @@
 {
   "name": "vkap-bot",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
     "node-telegram-bot-api": "^0.66.0",
-    "@solana/web3.js": "^1.98.0",
-    "bs58": "^6.0.0",
     "openai": "^4.52.7"
   }
 }
